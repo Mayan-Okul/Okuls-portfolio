@@ -1,0 +1,5 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Layered base tweaks live in main.css so this file stays a pure Tailwind entry. */

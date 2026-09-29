@@ -1,0 +1,11 @@
+# toolchain
+node_modules/
+package-lock.json
+
+# dev artifacts
+shots/
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db

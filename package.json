@@ -1,0 +1,15 @@
+{
+  "name": "okuls-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cyber-chic single-page portfolio for Mayan Okul — Software Developer, Kisumu, Kenya",
+  "scripts": {
+    "build": "tailwindcss -i ./css/input.css -o ./css/tailwind.css --minify",
+    "dev": "tailwindcss -i ./css/input.css -o ./css/tailwind.css --watch",
+    "serve": "python3 -m http.server 4173"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.12.0",
+    "tailwindcss": "^3.4.19"
+  }
+}
