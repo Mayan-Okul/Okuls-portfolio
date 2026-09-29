@@ -6,6 +6,13 @@ package-lock.json
 shots/
 *.log
 
+# unreferenced dev source images (site uses assets/*.webp only)
+assets/avatar-full.png
+assets/avatar-src.png
+assets/avatar.png
+assets/screen.png
+assets/zip-screen.png
+
 # OS junk
 .DS_Store
 Thumbs.db
