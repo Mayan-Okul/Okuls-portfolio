@@ -55,17 +55,11 @@
 
     <!-- ======================================================================
          SECTION 1 — HERO (dual-state, no background ever changes)
-         The stage container carries its own explicit #0A0A0E background; the state
-         transition only animates transform/opacity of the avatar and text panels.
+         The stage is a flat, invisible positioning layer: the avatar cutout
+         and the text panels float directly on the #0A0A0E page background.
+         The state transition only animates transform/opacity.
     ======================================================================= -->
     <section id="hero" class="hero" data-state="1" aria-label="Introduction">
-
-      <!-- Repeating faint MAYAN watermark -->
-      <div class="hero__watermark" aria-hidden="true">
-        <div class="wm-row wm-row--a"><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span></div>
-        <div class="wm-row wm-row--b"><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span></div>
-        <div class="wm-row wm-row--a"><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span><span>MAYAN&nbsp;</span></div>
-      </div>
 
       <!-- ambient neon orbs (decorative layers only — base stays #0A0A0E) -->
       <span class="orb orb--pink" aria-hidden="true"></span>
@@ -83,33 +77,20 @@
           </div>
         </div>
 
-        <!-- ===== STAGE: explicit dark background, never faded or removed ===== -->
+        <!-- ===== STAGE: flat positioning layer — no card, no border, no backdrop ===== -->
         <div class="hero__stage" id="heroStage">
           <div class="hero__layout" id="heroLayout">
 
-            <!-- AVATAR (slides left → right between states) -->
+            <!-- AVATAR — standalone transparent cutout floating directly on the
+                 #0A0A0E page background. No card, border or background shape.
+                 Slides left → right between states via a pure transform. -->
             <div class="hero__avatar-slot" id="avatarSlot">
               <figure class="avatar" id="avatar">
-                <span class="avatar__glow" aria-hidden="true"></span>
-                <div class="avatar__frame">
-                  <img src="assets/avatar.webp" width="820" height="820" fetchpriority="high"
-                       alt="3D avatar of Mayan Okul: a dark-skinned developer with double afro puffs wearing a bright pink hoodie embroidered with ‘Tech love’" />
+                <img src="assets/avatar-cutout.png" width="284" height="468" fetchpriority="high" decoding="async"
+                     alt="Cutout of Mayan Okul: a dark-skinned developer with double afro puffs wearing a bright pink hoodie embroidered with ‘Tech love’" />
 
-                  <!-- blink eyelids (positioned from detected eye landmarks) -->
-                  <span class="avatar__lid avatar__lid--l" aria-hidden="true"></span>
-                  <span class="avatar__lid avatar__lid--r" aria-hidden="true"></span>
-
-                  <!-- kiss / heart particles spawn here -->
-                  <div class="avatar__fx" id="avatarFx" aria-hidden="true"></div>
-
-                  <figcaption class="avatar__badge glass">
-                    <span class="mono"><i class="dot dot--live"></i> available for high-impact roles</span>
-                    <span class="mono avatar__badge-tag">go · react</span>
-                  </figcaption>
-
-                  <button type="button" class="avatar__tap" id="avatarTap"
-                          aria-label="Switch hero state (also blows a kiss 💋)"></button>
-                </div>
+                <button type="button" class="avatar__tap" id="avatarTap"
+                        aria-label="Switch hero state"></button>
               </figure>
             </div>
 
