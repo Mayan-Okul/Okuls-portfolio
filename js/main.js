@@ -1,8 +1,8 @@
 /* ==========================================================================
    MAYAN OKUL — interactions
    Hero rule: switching states only ever changes transform/opacity of the
-   avatar slot and text panels (via [data-state] in CSS). Backgrounds,
-   wrappers and the stage itself are NEVER toggled, faded or removed.
+   avatar slot and text panels (via [data-state] in CSS). Backgrounds and
+   wrappers are NEVER toggled, faded or removed.
    ========================================================================== */
 (() => {
   'use strict';
@@ -37,7 +37,6 @@
   const stateBtns   = $$('[data-state-btn]');
   const gotoBtns    = $$('[data-goto-state]');
   const avatarTap   = $('#avatarTap');
-  const avatarFx    = $('#avatarFx');
 
   const PANELS = {
     1: $('#state1'),
@@ -97,66 +96,17 @@
   stateBtns.forEach((btn) => btn.addEventListener('click', () => setState(Number(btn.dataset.stateBtn))));
   gotoBtns.forEach((btn) => btn.addEventListener('click', () => setState(Number(btn.dataset.gotoState))));
   if (avatarTap) {
-    avatarTap.addEventListener('click', () => {
-      toggleState();
-      blowKiss(6); // she celebrates every switch with a kiss 💋
-    });
+    avatarTap.addEventListener('click', () => toggleState());
   }
 
   renderState();
   renderCountdown();
 
   /* ------------------------------------------------------------------ *
-   *  Avatar life: blinking + blown kisses
-   *  Eyelids/particles are absolutely-positioned overlays INSIDE the
-   *  avatar frame — nothing structural is ever added or removed.
+   *  Avatar idle life is pure CSS: a gentle float/bob on the cutout.
+   *  (The old eyelid blink and blown-kiss particles were removed — the
+   *  cutout asset has no frame to anchor overlays to.)
    * ------------------------------------------------------------------ */
-  const avatar = $('#avatar');
-
-  function blink() {
-    if (!avatar || !heroVisible) return;
-    avatar.classList.add('is-blinking');
-    setTimeout(() => avatar.classList.remove('is-blinking'), 130);
-  }
-
-  if (!reducedMotion) {
-    (function blinkLoop() {
-      blink();
-      const double = Math.random() < 0.14;
-      if (double) setTimeout(blink, 260);
-      setTimeout(blinkLoop, rand(2600, 4800));
-    })();
-  }
-
-  function spawnHeart() {
-    if (!avatarFx) return;
-    const heart = document.createElement('span');
-    heart.className = 'fx-heart';
-    // mouth landmark ≈ (24.8%, 55%) of the 1024² source image
-    heart.style.setProperty('--x', '24.8%');
-    heart.style.setProperty('--y', '55%');
-    heart.style.setProperty('--dx', `${rand(-70, 40)}px`);
-    heart.style.setProperty('--dy', `${rand(-180, -100)}px`);
-    heart.style.setProperty('--rot', `${rand(-28, 28)}deg`);
-    heart.style.setProperty('--size', `${rand(0.8, 1.5)}rem`);
-    heart.style.setProperty('--dur', `${rand(1.3, 1.9)}s`);
-    heart.textContent = Math.random() < 0.82 ? '💗' : '💋';
-    heart.addEventListener('animationend', () => heart.remove(), { once: true });
-    avatarFx.appendChild(heart);
-  }
-
-  function blowKiss(count = 3) {
-    if (reducedMotion) return;
-    for (let i = 0; i < count; i += 1) setTimeout(spawnHeart, i * 130);
-  }
-
-  if (!reducedMotion) {
-    (function kissLoop() {
-      if (heroVisible) blowKiss(3);
-      setTimeout(kissLoop, rand(5500, 8500));
-    })();
-  }
-
   /* ------------------------------------------------------------------ *
    *  Scroll reveal (staggered per parent group)
    * ------------------------------------------------------------------ */
@@ -183,7 +133,7 @@
     revealEls.forEach((el) => el.classList.add('is-visible'));
   }
 
-  /* Pause countdown / blink / kiss while the hero is off-screen */
+  /* Pause the countdown while the hero is off-screen */
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
       heroVisible = entries[0].isIntersecting;
