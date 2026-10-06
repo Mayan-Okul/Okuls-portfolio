@@ -3,8 +3,8 @@
    Cyber-chic: charcoal #0A0A0E · hot pink #FF1493 · baby pink · cyan
    RULE: the page background is painted #0A0A0E inline in <head> and is NEVER
    swapped, faded or removed. Hero state changes animate ONLY transform /
-   opacity of the avatar slot and text panels — inside a stage that keeps an
-   explicit dark background at all times.
+   opacity of the avatar slot and text panels — the stage itself stays a
+   flat, invisible positioning layer (no card, border or backdrop).
    ========================================================================== */
 
 /* ---------------------------------- tokens ------------------------------- */
@@ -264,41 +264,6 @@ body {
   overflow: hidden;
 }
 
-/* watermark floats above the stage's dark canvas (ultra-faint, decorative) */
-.hero__watermark {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: clamp(0.5rem, 2vh, 1.5rem);
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-  -webkit-mask-image: radial-gradient(120% 100% at 50% 50%, #000 40%, transparent 100%);
-          mask-image: radial-gradient(120% 100% at 50% 50%, #000 40%, transparent 100%);
-}
-.wm-row {
-  display: flex;
-  flex: none;
-  white-space: nowrap;
-  font-size: clamp(5.5rem, 17vw, 15rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.026);
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.05);
-}
-.wm-row--a { animation: wm-drift 80s linear infinite; }
-.wm-row--b { animation: wm-drift 95s linear infinite reverse; }
-
-@keyframes wm-drift {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(-50%, 0, 0); }
-}
-
 .orb {
   position: absolute;
   z-index: 0;
@@ -403,19 +368,11 @@ body {
   box-shadow: 0 0 14px rgba(255, 20, 147, 0.5);
 }
 
-/* STAGE — carries its own explicit dark background; never fades or swaps it */
+/* STAGE — flat, invisible positioning layer: no card, no border, no backdrop.
+   The avatar cutout and the panels float directly on the #0A0A0E canvas. */
 .hero__stage {
   position: relative;
   z-index: 10;
-  background:
-    radial-gradient(90% 120% at 78% 0%, rgba(255, 20, 147, 0.06), transparent 45%),
-    radial-gradient(80% 110% at 8% 100%, rgba(34, 211, 238, 0.05), transparent 42%),
-    #0A0A0E;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-lg);
-  padding: clamp(1.4rem, 3.5vw, 2.75rem);
-  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.55);
-  overflow: hidden;
 }
 
 /* layout: two equal columns → the avatar can slide to the other column with a
@@ -438,122 +395,54 @@ body {
 .hero[data-state='2'] .hero__avatar-slot { transform: translateX(calc(100% + var(--hero-gap))); }
 .hero[data-state='2'] .hero__content    { transform: translateX(calc(-100% - var(--hero-gap))); }
 
-/* avatar */
-.hero__avatar-slot { display: flex; justify-content: center; }
+/* avatar — a standalone transparent cutout. It floats directly on the page
+   background: no card, no border, no glow or any other backdrop behind it.
+   The figure is absolutely positioned inside its slot (per spec) so it moves
+   fully independently during the state transition. */
+.hero__avatar-slot {
+  position: relative;
+  align-self: stretch; /* span the stage row so the cutout can anchor inside it */
+}
 
 .avatar {
-  position: relative;
-  width: min(100%, 26rem);
-  margin: 0;
-}
-
-.avatar__glow {
   position: absolute;
-  inset: -1.4rem;
-  border-radius: 2.4rem;
-  background:
-    radial-gradient(60% 60% at 30% 30%, rgba(255, 20, 147, 0.5), transparent 70%),
-    radial-gradient(55% 55% at 75% 70%, rgba(34, 211, 238, 0.4), transparent 70%);
-  filter: blur(28px);
-  opacity: 0.55;
-  animation: orb-pulse 5s ease-in-out infinite;
-  pointer-events: none;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(100%, 17.5rem);
+  margin: 0;
+  will-change: transform;
 }
 
-.avatar__frame {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 2rem;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: #101018;
-  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 20, 147, 0.14);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-.avatar:hover .avatar__frame {
-  border-color: rgba(255, 20, 147, 0.6);
-  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.65), 0 0 40px rgba(255, 20, 147, 0.28);
-}
-
-.avatar__frame > img {
+.avatar > img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+  animation: avatar-float 5.4s ease-in-out infinite;
+  will-change: transform;
 }
 
-/* blink eyelids — anchored to detected eye landmarks (image 1024²):
-   L eye (17.3%, 38.0%) · R eye (32.4%, 38.2%) · Ø ≈ 9.8% */
-.avatar__lid {
-  position: absolute;
-  width: 10.8%;
-  height: 10.8%;
-  border-radius: 52% 52% 48% 48%;
-  background: linear-gradient(160deg, #8F4A33, #A5573C 60%, #7C3E2B);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
-  transform: scaleY(0);
-  transform-origin: center;
-  transition: transform 0.12s ease-in;
-  pointer-events: none;
-  z-index: 2;
+/* gentle idle bob — the only “life” left on the cutout */
+@keyframes avatar-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-0.6rem); }
 }
-.avatar__lid--l { left: calc(17.3% - 5.4%); top: calc(38.0% - 5.4%); }
-.avatar__lid--r { left: calc(32.4% - 5.4%); top: calc(38.2% - 5.4%); }
-
-.avatar.is-blinking .avatar__lid { transform: scaleY(1); transition-timing-function: ease-out; }
-
-/* kiss / heart particles */
-.avatar__fx {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  overflow: visible;
-  pointer-events: none;
-}
-.fx-heart {
-  position: absolute;
-  left: var(--x, 25%);
-  top: var(--y, 50%);
-  font-size: var(--size, 1.2rem);
-  line-height: 1;
-  color: var(--neon);
-  text-shadow: 0 0 12px rgba(255, 20, 147, 0.8);
-  opacity: 0;
-  animation: heart-float var(--dur, 1.6s) cubic-bezier(0.22, 0.9, 0.3, 1) forwards;
-}
-@keyframes heart-float {
-  0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
-  14%  { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, -140px)) scale(1.2) rotate(var(--rot, 0deg)); }
-}
-
-.avatar__badge {
-  position: absolute;
-  left: 0.9rem;
-  right: 0.9rem;
-  bottom: 0.9rem;
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 14px;
-  font-size: 0.6rem;
-  color: #fff;
-  letter-spacing: 0.02em;
-}
-.avatar__badge-tag { color: var(--baby); white-space: nowrap; }
 
 .avatar__tap {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 2;
   appearance: none;
   border: 0;
   background: transparent;
-  border-radius: inherit;
   cursor: pointer;
+}
+.avatar__tap:focus-visible {
+  outline: 2px solid var(--neon);
+  outline-offset: 8px;
+  border-radius: 1rem;
 }
 
 /* content / panels — crossfade ONLY opacity + transform */
@@ -1617,7 +1506,8 @@ a.contact-card:hover .contact-card__icon { transform: scale(1.1); }
   .hero__layout { grid-template-columns: 1fr; min-height: 0; }
   .hero__avatar-slot,
   .hero__content { transform: none !important; }
-  .avatar { width: min(100%, 21rem); }
+  .hero__avatar-slot { align-self: auto; }
+  .avatar { position: static; transform: none; margin: 0 auto; width: min(100%, 16rem); }
   .hero__content { max-width: 40rem; }
   .hero-panel { padding-top: 0.5rem; }
 
@@ -1636,7 +1526,6 @@ a.contact-card:hover .contact-card__icon { transform: scale(1.1); }
 
 @media (max-width: 640px) {
   .hero { padding-top: 5.5rem; }
-  .hero__stage { padding: 1.15rem; border-radius: 22px; }
   .hud-chip--sep { border-left: 0; padding-left: 0; }
   .bio-grid { grid-template-columns: 1fr; }
   .find-me__pills { grid-template-columns: 1fr; }
@@ -1645,11 +1534,6 @@ a.contact-card:hover .contact-card__icon { transform: scale(1.1); }
   .chat-bubble--self::before { right: auto; left: -7px; }
   .site-footer__inner { flex-direction: column; text-align: center; }
   .cta-row .btn { flex: 1 1 100%; }
-  .avatar__badge { font-size: 0.54rem; padding: 0.5rem 0.7rem; }
-}
-
-@media (max-width: 430px) {
-  .avatar__badge-tag { display: none; }
 }
 
 @media (max-width: 400px) {
@@ -1668,9 +1552,9 @@ a.contact-card:hover .contact-card__icon { transform: scale(1.1); }
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
   }
-  .wm-row, .ws-track, .orb, .hero__scroll-arrow, .featured__scan { animation: none !important; }
+  .ws-track, .orb, .hero__scroll-arrow, .featured__scan { animation: none !important; }
   .js .reveal { opacity: 1; transform: none; }
-  .avatar__lid { display: none; }
+  .avatar > img { animation: none !important; }
   .hero[data-state='2'] .hero__avatar-slot,
   .hero[data-state='2'] .hero__content { transition: none; }
 }
