@@ -1,10 +1,12 @@
 /* ==========================================================================
    MAYAN OKUL — portfolio
    Cyber-chic: charcoal #0A0A0E · hot pink #FF1493 · baby pink · cyan
-   RULE: the page background is painted #0A0A0E inline in <head> and is NEVER
-   swapped, faded or removed. Hero state changes animate ONLY transform /
-   opacity of the avatar slot and text panels — the stage itself stays a
-   flat, invisible positioning layer (no card, border or backdrop).
+   The page background is painted #0A0A0E inline in <head> and NEVER changes —
+   it is the canvas. When the hero flips state 1→2 the section background fades
+   (#0A0A0E → #FFFFFF, ~0.8–1s ease-in-out) and the foreground (headline,
+   buttons, avatar cutout, panels) is re-tinted so it stays readable and in
+   place. The stage stays a flat invisible positioning layer — only the
+   section background and adaptive text/border colours change.
    ========================================================================== */
 
 /* ---------------------------------- tokens ------------------------------- */
@@ -24,6 +26,14 @@
   --glass-bg: rgba(255, 255, 255, 0.045);
   --glass-border: rgba(255, 255, 255, 0.09);
 
+  /* hero state-2: white canvas + adaptive foreground variables */
+  --bg-2: #FFFFFF;
+  --ink-2: #121214;
+  --muted-2: #5A5A66;
+  --faint-2: #8A8A96;
+  --line-2: rgba(18, 18, 20, 0.08);
+  --bg-2-glow: rgba(255, 20, 147, 0.10);
+
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --font-script: 'Caveat', 'Segoe Script', cursive;
@@ -38,11 +48,19 @@
 
   --glow-pink: 0 0 22px rgba(255, 20, 147, 0.42);
   --glow-cyan: 0 0 26px rgba(34, 211, 238, 0.35);
+  --glow-pink-2: 0 0 26px rgba(255, 20, 147, 0.55);
 }
 
 /* ---------------------------------- base --------------------------------- */
 html {
   scroll-padding-top: 110px;
+}
+
+/* hero section background crossfade: charcoal (default) → white on state 2
+   with adaptive foreground that swaps with it via [data-state='2'] selectors. */
+.hero {
+  background-color: var(--charcoal);
+  transition: background-color 0.9s ease-in-out;
 }
 
 body {
