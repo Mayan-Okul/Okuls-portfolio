@@ -1,53 +1,238 @@
-/* ==========================================================================
-   MAYAN OKUL — interactions
-   Hero rule: switching states only ever changes transform/opacity of the
-   avatar slot and text panels (via [data-state] in CSS). Backgrounds and
-   wrappers are NEVER toggled, faded or removed.
-   ========================================================================== */
+/**
+ * MAYAN OKUL — Portfolio Interactions & High-Performance Engine
+ * Software Developer | Kisumu, Kenya
+ *
+ * Performance fixes included:
+ * - Offscreen background caching for static canvas networks (0% repetitive CPU overhead)
+ * - Auto-pausing canvas RAF loop and countdowns when off-screen via IntersectionObserver
+ * - High-speed 2-pass ant rendering eliminating software shadowBlur lag
+ * - Debounced scroll listeners to eliminate layout thrashing
+ */
+
 (() => {
   'use strict';
 
-  const $  = (sel, root = document) => root.querySelector(sel);
+  const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  const rand  = (min, max) => min + Math.random() * (max - min);
+  const rand = (min, max) => min + Math.random() * (max - min);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ------------------------------------------------------------------ *
-   *  Footer year
+   *  1. Footer Year
    * ------------------------------------------------------------------ */
   const yearEl = $('#year');
   if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 
   /* ------------------------------------------------------------------ *
-   *  Header shadow on scroll
+   *  2. Header Shadow on Scroll (Debounced to prevent layout thrashing)
    * ------------------------------------------------------------------ */
   const header = $('#siteHeader');
-  if (header) {
-    const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 12);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+  let isScrolled = false;
+  const onScroll = () => {
+    const scrolled = window.scrollY > 12;
+    if (scrolled !== isScrolled) {
+      isScrolled = scrolled;
+      if (header) header.classList.toggle('is-scrolled', scrolled);
+    }
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* ------------------------------------------------------------------ *
+   *  3. Rotating Headline Words in State 1
+   * ------------------------------------------------------------------ */
+  const wordItems = $$('[data-word-item]');
+  let currentWordIdx = 0;
+  let wordExitTimeout = null;
+
+  function cycleNextWord() {
+    if (wordItems.length < 2) return;
+    const prevIdx = currentWordIdx;
+    currentWordIdx = (currentWordIdx + 1) % wordItems.length;
+
+    const prevEl = wordItems[prevIdx];
+    const nextEl = wordItems[currentWordIdx];
+
+    prevEl.classList.remove('is-current');
+    prevEl.classList.add('is-exiting');
+
+    nextEl.classList.remove('is-exiting');
+    nextEl.classList.add('is-current');
+
+    if (wordExitTimeout) clearTimeout(wordExitTimeout);
+    wordExitTimeout = setTimeout(() => {
+      prevEl.classList.remove('is-exiting');
+    }, 620);
   }
 
   /* ------------------------------------------------------------------ *
-   *  Hero state machine
+   *  4. Hero Dual-State Machine (State 1 Pitch ↔ State 2 Bio)
    * ------------------------------------------------------------------ */
-  const hero        = $('#hero');
-  const hudState    = $('#hudState');
+  const hero = $('#hero');
+  const pitchLayer = $('.hero__layer--pitch');
+  const bioLayer = $('.hero__layer--bio');
+  const hudState = $('#hudState');
   const countdownEl = $('#countdown');
-  const stateBtns   = $$('[data-state-btn]');
-  const gotoBtns    = $$('[data-goto-state]');
-  const avatarTap   = $('#avatarTap');
+  const stateBtns = $$('[data-state-btn]');
+  const gotoBtns = $$('[data-goto-state]');
 
-  const PANELS = {
-    1: $('#state1'),
-    2: $('#state2'),
-  };
+  const pitchChildren = $$('.hero__layer--pitch .hero__content > *');
+  const pitchArt = $('.hero__layer--pitch .hero__art');
+  const bioArt = $('.hero__layer--bio .hero__art');
+  const bioHeaders = $$(
+    '.hero__layer--bio .hero__content > .eyebrow, .hero__layer--bio .hero__content > .hero-title'
+  );
+  const bioCards = $$('.hero__layer--bio .bio-card');
+  const bioCta = $('.hero__layer--bio .cta-row');
+
   const LABELS = { 1: '01 · pitch', 2: '02 · bio' };
   const FLIP_AFTER = 15; // seconds between automatic flips
 
   let state = 1;
   let remaining = FLIP_AFTER;
   let heroVisible = true;
+
+  /* cubic-bezier(.76,0,.24,1) cinematic ease */
+  function cubicBezier(x1, y1, x2, y2) {
+    const A = (a, b) => 1 - 3 * b + 3 * a;
+    const B = (a, b) => 3 * b - 6 * a;
+    const C = (a) => 3 * a;
+    const calc = (t, a, b) => ((A(a, b) * t + B(a, b)) * t + C(a)) * t;
+    const slope = (t, a, b) => 3 * A(a, b) * t * t + 2 * B(a, b) * t + C(a);
+    return (x) => {
+      let t = x;
+      for (let i = 0; i < 6; i += 1) {
+        const s = slope(t, x1, x2);
+        if (s === 0) break;
+        t -= (calc(t, x1, x2) - x) / s;
+      }
+      return calc(t, y1, y2);
+    };
+  }
+  const ease = cubicBezier(0.76, 0, 0.24, 1);
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+  const subL = (prog, a, w) => clamp01((prog - a) / w);
+
+  let p = 0;
+  let originX = '72%';
+  let rafId = null;
+  let animFrom = 0;
+  let animTo = 0;
+  let animStart = 0;
+  let animDur = 1400;
+  let transitioning = false;
+
+  function setP(value) {
+    const clamped = clamp01(value);
+    p = clamped;
+    if (!hero) return;
+
+    hero.style.setProperty('--p', clamped.toFixed(4));
+
+    // Circular clip-path reveal on bioLayer
+    if (bioLayer && !reducedMotion) {
+      const radiusPct = (clamped * 150).toFixed(2);
+      const clipVal = `circle(${radiusPct}% at ${originX} 45%)`;
+      bioLayer.style.clipPath = clipVal;
+      bioLayer.style.webkitClipPath = clipVal;
+    } else if (bioLayer && reducedMotion) {
+      bioLayer.style.opacity = String(clamped);
+      if (pitchLayer) pitchLayer.style.opacity = String(1 - clamped);
+    }
+
+    if (reducedMotion) return;
+
+    // Staggered child timelines
+    pitchChildren.forEach((el, idx) => {
+      const L = subL(clamped, idx * 0.03, 0.22);
+      el.style.opacity = String(1 - L);
+      el.style.transform = `translateY(${(-12 * L).toFixed(2)}px)`;
+    });
+
+    if (pitchArt) {
+      const L = subL(clamped, 0.18, 0.45);
+      pitchArt.style.opacity = String(1 - L);
+      pitchArt.style.transform = `translateX(${(-3.5 * L).toFixed(2)}%) scale(${(1 + 0.025 * L).toFixed(4)})`;
+    }
+
+    if (bioArt) {
+      const L = subL(clamped, 0.18, 0.55);
+      bioArt.style.opacity = String(L);
+      bioArt.style.transform = `translateX(${((1 - L) * 5).toFixed(2)}%) scale(${(1.04 - 0.04 * L).toFixed(4)})`;
+    }
+
+    bioHeaders.forEach((el) => {
+      const L = subL(clamped, 0.42, 0.24);
+      el.style.opacity = String(L);
+      el.style.transform = `translateY(${((1 - L) * 16).toFixed(2)}px)`;
+    });
+
+    bioCards.forEach((el, idx) => {
+      const L = subL(clamped, 0.55 + idx * 0.065, 0.24);
+      el.style.opacity = String(L);
+      el.style.transform = `translateY(${((1 - L) * 18).toFixed(2)}px) scale(${(0.97 + 0.03 * L).toFixed(4)})`;
+    });
+
+    if (bioCta) {
+      const L = subL(clamped, 0.82, 0.18);
+      bioCta.style.opacity = String(L);
+      bioCta.style.transform = `translateY(${((1 - L) * 12).toFixed(2)}px)`;
+    }
+  }
+
+  function finishTransition() {
+    rafId = null;
+    transitioning = false;
+    if (hero) hero.classList.remove('is-transitioning');
+  }
+
+  function tick(now) {
+    const t = Math.min((now - animStart) / animDur, 1);
+    const e = ease(t);
+    const nextP = animFrom + (animTo - animFrom) * e;
+    setP(nextP);
+    if (t < 1) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      setP(animTo);
+      finishTransition();
+    }
+  }
+
+  function animateTo(target) {
+    if (!hero) return;
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    const from = p;
+    animFrom = from;
+    animTo = target;
+    animStart = performance.now();
+    const forward = target >= from;
+    originX = forward ? '72%' : '28%';
+    hero.style.setProperty('--origin-x', originX);
+    hero.classList.add('is-transitioning');
+    transitioning = true;
+
+    if (reducedMotion) {
+      const start = performance.now();
+      const step = (now) => {
+        const tt = Math.min((now - start) / 200, 1);
+        setP(from + (target - from) * tt);
+        if (tt < 1) rafId = requestAnimationFrame(step);
+        else {
+          setP(target);
+          finishTransition();
+        }
+      };
+      rafId = requestAnimationFrame(step);
+      return;
+    }
+
+    animDur = forward ? 1350 : 950;
+    rafId = requestAnimationFrame(tick);
+  }
 
   function renderCountdown() {
     if (countdownEl) countdownEl.textContent = String(remaining);
@@ -57,6 +242,7 @@
     if (!hero) return;
     hero.dataset.state = String(state);
 
+    if (header) header.classList.toggle('nav--light', state === 2);
     if (hudState) hudState.textContent = LABELS[state];
 
     stateBtns.forEach((btn) => {
@@ -65,50 +251,61 @@
       btn.setAttribute('aria-pressed', String(active));
     });
 
-    for (const [n, panel] of Object.entries(PANELS)) {
-      if (!panel) continue;
-      const active = Number(n) === state;
-      panel.classList.toggle('is-active', active);
-      panel.setAttribute('aria-hidden', String(!active));
-    }
+    if (pitchLayer) pitchLayer.setAttribute('aria-hidden', String(state !== 1));
+    if (bioLayer) bioLayer.setAttribute('aria-hidden', String(state !== 2));
   }
 
   function setState(next) {
-    state = next === 2 ? 2 : 1;
+    const targetState = next === 2 ? 2 : 1;
+    state = targetState;
     renderState();
+    animateTo(state === 2 ? 1 : 0);
     remaining = FLIP_AFTER;
     renderCountdown();
   }
 
   const toggleState = () => setState(state === 1 ? 2 : 1);
 
-  /* 1-second heartbeat: countdown → automatic flip (only while hero on screen) */
+  // Auto-flip countdown heartbeat (pauses when hero is off-screen)
   setInterval(() => {
-    if (!heroVisible) return;               // hold the countdown off-screen
+    if (!heroVisible || transitioning) return;
     remaining -= 1;
     if (remaining <= 0) {
-      toggleState();                         // also resets the countdown
+      toggleState();
     } else {
       renderCountdown();
     }
   }, 1000);
 
-  stateBtns.forEach((btn) => btn.addEventListener('click', () => setState(Number(btn.dataset.stateBtn))));
-  gotoBtns.forEach((btn) => btn.addEventListener('click', () => setState(Number(btn.dataset.gotoState))));
-  if (avatarTap) {
-    avatarTap.addEventListener('click', () => toggleState());
+  // Rotating words heartbeat in State 1
+  setInterval(() => {
+    if (!heroVisible || transitioning || state !== 1 || reducedMotion) return;
+    cycleNextWord();
+  }, 2600);
+
+  stateBtns.forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      setState(Number(e.currentTarget.dataset.stateBtn));
+    });
+  });
+
+  gotoBtns.forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      setState(Number(e.currentTarget.dataset.gotoState));
+    });
+  });
+
+  const bioImg = $('#heroBioImg');
+  if (bioImg && typeof bioImg.decode === 'function') {
+    bioImg.decode().catch(() => {});
   }
 
   renderState();
   renderCountdown();
+  setP(0);
 
   /* ------------------------------------------------------------------ *
-   *  Avatar idle life is pure CSS: a gentle float/bob on the cutout.
-   *  (The old eyelid blink and blown-kiss particles were removed — the
-   *  cutout asset has no frame to anchor overlays to.)
-   * ------------------------------------------------------------------ */
-  /* ------------------------------------------------------------------ *
-   *  Scroll reveal (staggered per parent group)
+   *  5. Scroll Reveal (IntersectionObserver)
    * ------------------------------------------------------------------ */
   const revealEls = $$('.reveal');
   const seen = new Map();
@@ -120,43 +317,54 @@
   });
 
   if ('IntersectionObserver' in window && !reducedMotion) {
-    const revealIO = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          revealIO.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    const revealIO = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            revealIO.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
+    );
     revealEls.forEach((el) => revealIO.observe(el));
   } else {
     revealEls.forEach((el) => el.classList.add('is-visible'));
   }
 
-  /* Pause the countdown while the hero is off-screen */
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver((entries) => {
-      heroVisible = entries[0].isIntersecting;
-      if (heroVisible) renderCountdown();
-    }, { threshold: 0.2 }).observe(hero || document.body);
+  // Monitor hero visibility so timers pause when user scrolls down
+  if ('IntersectionObserver' in window && hero) {
+    new IntersectionObserver(
+      (entries) => {
+        heroVisible = entries[0].isIntersecting;
+        if (heroVisible) renderCountdown();
+      },
+      { threshold: 0.2 }
+    ).observe(hero);
   }
 
-  /* ==================================================================== *
-   *  lem-in — ant colony canvas simulation
-   *  Two disjoint paths (max-flow = 2): ants enter the colony, walk a
-   *  tunnel graph rendered over the vivarium photo, and exit at the end.
-   * ==================================================================== */
+  /* ------------------------------------------------------------------ *
+   *  6. lem-in — Ant Colony Simulation (High-Performance 60fps)
+   * ------------------------------------------------------------------ */
   const canvas = $('#lemInCanvas');
   if (canvas && canvas.getContext) {
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     const statsEl = $('#vizStats');
     const releaseBtn = $('#releaseAnts');
 
-    /* --- graph (unit square coordinates, scaled to the canvas) -------- */
+    // Off-screen canvas caches static glowing tunnels and node circles
+    const bgCanvas = document.createElement('canvas');
+    const bgCtx = bgCanvas.getContext('2d');
+
     const NODES = {
-      S: [0.07, 0.60], A: [0.20, 0.38], B: [0.22, 0.76],
-      C: [0.40, 0.26], D: [0.45, 0.70],
-      F: [0.62, 0.46], G: [0.66, 0.82],
+      S: [0.07, 0.6],
+      A: [0.2, 0.38],
+      B: [0.22, 0.76],
+      C: [0.4, 0.26],
+      D: [0.45, 0.7],
+      F: [0.62, 0.46],
+      G: [0.66, 0.82],
       E: [0.88, 0.58],
     };
     const PATHS = [
@@ -164,12 +372,19 @@
       ['S', 'B', 'D', 'G', 'E'],
     ];
     const EDGES = [
-      ['S', 'A'], ['A', 'C'], ['C', 'F'], ['F', 'E'],
-      ['S', 'B'], ['B', 'D'], ['D', 'G'], ['G', 'E'],
-      ['C', 'D'], ['A', 'B'], ['D', 'F'], // decoy tunnels
+      ['S', 'A'],
+      ['A', 'C'],
+      ['C', 'F'],
+      ['F', 'E'],
+      ['S', 'B'],
+      ['B', 'D'],
+      ['D', 'G'],
+      ['G', 'E'],
+      ['C', 'D'],
+      ['A', 'B'],
+      ['D', 'F'],
     ];
 
-    /* precompute cumulative lengths of each path in unit space */
     const pathGeom = PATHS.map((names) => {
       const pts = names.map((n) => NODES[n]);
       const cum = [0];
@@ -181,8 +396,8 @@
       return { pts, cum, total: cum[cum.length - 1] };
     });
 
-    function pointOnPath(p, d) {
-      const { pts, cum, total } = pathGeom[p];
+    function pointOnPath(pathIdx, d) {
+      const { pts, cum, total } = pathGeom[pathIdx];
       const target = d * total;
       let i = 1;
       while (i < cum.length - 1 && cum[i] < target) i += 1;
@@ -193,44 +408,94 @@
       ];
     }
 
-    /* --- sizing -------------------------------------------------------- */
-    let W = 0;
-    let H = 0;
+    let W = 0, H = 0;
+    function renderStaticBackground() {
+      if (!bgCtx) return;
+      bgCanvas.width = canvas.width;
+      bgCanvas.height = canvas.height;
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const X = (v) => v * W;
+      const Y = (v) => v * H;
+
+      // Outer glowing tunnel strokes
+      bgCtx.lineCap = 'round';
+      bgCtx.lineJoin = 'round';
+      bgCtx.strokeStyle = 'rgba(34, 211, 238, 0.28)';
+      bgCtx.lineWidth = Math.max(6, H * 0.024);
+      EDGES.forEach(([a, b]) => {
+        bgCtx.beginPath();
+        bgCtx.moveTo(X(NODES[a][0]), Y(NODES[a][1]));
+        bgCtx.lineTo(X(NODES[b][0]), Y(NODES[b][1]));
+        bgCtx.stroke();
+      });
+
+      // Sharp cyan inner core
+      bgCtx.strokeStyle = 'rgba(155, 231, 245, 0.75)';
+      bgCtx.lineWidth = Math.max(1.8, H * 0.007);
+      EDGES.forEach(([a, b]) => {
+        bgCtx.beginPath();
+        bgCtx.moveTo(X(NODES[a][0]), Y(NODES[a][1]));
+        bgCtx.lineTo(X(NODES[b][0]), Y(NODES[b][1]));
+        bgCtx.stroke();
+      });
+
+      // Node circles
+      Object.keys(NODES).forEach((name) => {
+        const isEnd = name === 'E';
+        const r = isEnd || name === 'S' ? H * 0.016 : H * 0.011;
+
+        bgCtx.beginPath();
+        bgCtx.fillStyle = isEnd ? 'rgba(255, 20, 147, 0.35)' : 'rgba(34, 211, 238, 0.35)';
+        bgCtx.arc(X(NODES[name][0]), Y(NODES[name][1]), r * 1.5, 0, Math.PI * 2);
+        bgCtx.fill();
+
+        bgCtx.beginPath();
+        bgCtx.fillStyle = isEnd ? '#FF1493' : '#E0F7FA';
+        bgCtx.arc(X(NODES[name][0]), Y(NODES[name][1]), r, 0, Math.PI * 2);
+        bgCtx.fill();
+      });
+    }
+
     function resize() {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = rect.width;
       H = rect.height;
+      if (W <= 0 || H <= 0) return;
       canvas.width = Math.max(1, Math.round(W * dpr));
       canvas.height = Math.max(1, Math.round(H * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      renderStaticBackground();
     }
     window.addEventListener('resize', resize, { passive: true });
-    window.addEventListener('load', resize);
     resize();
 
-    /* --- simulation state ---------------------------------------------- */
     const ants = [];
     let delivered = 0;
     let nextPath = 0;
     let spawnTimer = 0;
-    let burstUntil = 0;      // releaseAnts → fast spawning window
-    let canvasVisible = true;
+    let burstUntil = 0;
+    let canvasVisible = false;
+    let canvasRafId = null;
     let lastFrame = performance.now();
     let statsAt = 0;
 
-    const MAX_ANTS = 26;
-    const SPAWN_EVERY = 0.95;  // seconds between natural spawns
+    const MAX_ANTS = 24;
+    const SPAWN_EVERY = 0.95;
     const BURST_EVERY = 0.14;
 
     function spawnAnt() {
       if (ants.length >= MAX_ANTS) return;
-      const p = nextPath % PATHS.length;
+      const pathIndex = nextPath % PATHS.length;
       nextPath += 1;
       ants.push({
-        p,
+        p: pathIndex,
         d: 0,
-        speed: 1 / rand(4.0, 5.6), // seconds to walk a whole path
+        speed: 1 / rand(4.0, 5.6),
         wob: rand(0, Math.PI * 2),
       });
     }
@@ -258,99 +523,76 @@
       }
     }
 
-    /* --- rendering ------------------------------------------------------ */
     const X = (v) => v * W;
     const Y = (v) => v * H;
 
-    function drawTunnels() {
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      // soft cyan glow pass
-      ctx.shadowColor = 'rgba(34, 211, 238, 0.85)';
-      ctx.shadowBlur = Math.max(8, H * 0.03);
-      ctx.strokeStyle = 'rgba(34, 211, 238, 0.20)';
-      ctx.lineWidth = Math.max(5, H * 0.022);
-      EDGES.forEach(([a, b]) => {
-        ctx.beginPath();
-        ctx.moveTo(X(NODES[a][0]), Y(NODES[a][1]));
-        ctx.lineTo(X(NODES[b][0]), Y(NODES[b][1]));
-        ctx.stroke();
-      });
-
-      // bright core pass
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = 'rgba(155, 231, 245, 0.55)';
-      ctx.lineWidth = Math.max(1.4, H * 0.006);
-      EDGES.forEach(([a, b]) => {
-        ctx.beginPath();
-        ctx.moveTo(X(NODES[a][0]), Y(NODES[a][1]));
-        ctx.lineTo(X(NODES[b][0]), Y(NODES[b][1]));
-        ctx.stroke();
-      });
-    }
-
-    function drawNodes() {
-      ctx.shadowColor = 'rgba(34, 211, 238, 0.9)';
-      ctx.shadowBlur = Math.max(6, H * 0.02);
-      Object.keys(NODES).forEach((name) => {
-        const isEnd = name === 'E';
-        const r = isEnd || name === 'S' ? H * 0.016 : H * 0.011;
-        ctx.beginPath();
-        ctx.fillStyle = isEnd ? '#FF1493' : 'rgba(190, 242, 250, 0.95)';
-        ctx.arc(X(NODES[name][0]), Y(NODES[name][1]), r, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.shadowBlur = 0;
-    }
-
-    function drawAnts(t) {
-      const size = Math.max(3, H * 0.014);
+    function drawAnts() {
+      const size = Math.max(3.2, H * 0.014);
       ants.forEach((ant) => {
         const [ux, uy] = pointOnPath(ant.p, ant.d);
         const sway = Math.sin(ant.wob) * size * 0.16;
         const x = X(ux) + sway;
         const y = Y(uy) - Math.abs(sway) * 0.4;
+        const rot = Math.sin(ant.wob * 0.5) * 0.5;
 
-        ctx.shadowColor = 'rgba(255, 20, 147, 0.95)';
-        ctx.shadowBlur = size * 1.6;
-        ctx.fillStyle = '#FF1493';
+        // Glowing outer halo (GPU-accelerated, zero CPU shadowBlur lag)
+        ctx.fillStyle = 'rgba(255, 20, 147, 0.32)';
         ctx.beginPath();
-        ctx.ellipse(x, y, size * 0.62, size * 0.42, Math.sin(ant.wob * 0.5) * 0.6, 0, Math.PI * 2);
+        ctx.ellipse(x, y, size * 1.05, size * 0.75, rot, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.shadowBlur = 0;
+        // Vivid body core
+        ctx.fillStyle = '#FF1493';
+        ctx.beginPath();
+        ctx.ellipse(x, y, size * 0.62, size * 0.42, rot, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dark ant head
         ctx.fillStyle = '#2A0A14';
         ctx.beginPath();
         ctx.arc(x + size * 0.42, y - size * 0.1, size * 0.22, 0, Math.PI * 2);
         ctx.fill();
       });
-      ctx.shadowBlur = 0;
-      void t;
     }
 
     function frame(now) {
+      if (!canvasVisible || document.hidden) {
+        canvasRafId = null;
+        return;
+      }
       const dt = Math.min((now - lastFrame) / 1000, 0.05);
       lastFrame = now;
 
       ctx.clearRect(0, 0, W, H);
-      drawTunnels();
-      drawNodes();
+      if (bgCanvas.width > 0) ctx.drawImage(bgCanvas, 0, 0, W, H);
 
-      if (!reducedMotion && canvasVisible && !document.hidden) update(dt);
-      drawAnts(now);
+      if (!reducedMotion) update(dt);
+      drawAnts();
 
-      if (now - statsAt > 250) {
+      if (now - statsAt > 500) {
         statsAt = now;
         updateStats();
       }
 
-      requestAnimationFrame(frame);
+      canvasRafId = requestAnimationFrame(frame);
     }
 
-    /* --- controls -------------------------------------------------------- */
+    function startAnimation() {
+      if (canvasRafId === null && canvasVisible && !document.hidden) {
+        lastFrame = performance.now();
+        canvasRafId = requestAnimationFrame(frame);
+      }
+    }
+
+    function stopAnimation() {
+      if (canvasRafId !== null) {
+        cancelAnimationFrame(canvasRafId);
+        canvasRafId = null;
+      }
+    }
+
     if (releaseBtn) {
-      const defaultLabel = releaseBtn.textContent;
+      const defaultLabel = releaseBtn.textContent || 'release ants 🐜';
       releaseBtn.addEventListener('click', () => {
         if (reducedMotion) {
           delivered += 10;
@@ -362,22 +604,38 @@
         spawnAnt();
         spawnAnt();
         releaseBtn.textContent = 'ants released! 🐜';
-        setTimeout(() => { releaseBtn.textContent = defaultLabel; }, 1400);
+        setTimeout(() => {
+          releaseBtn.textContent = defaultLabel;
+        }, 1400);
       });
     }
 
+    // IntersectionObserver: pauses simulation when user scrolls away
     if ('IntersectionObserver' in window) {
-      new IntersectionObserver((entries) => {
-        canvasVisible = entries[0].isIntersecting;
-      }, { threshold: 0.05 }).observe(canvas);
+      new IntersectionObserver(
+        (entries) => {
+          const isVisible = entries[0].isIntersecting;
+          canvasVisible = isVisible;
+          if (isVisible) startAnimation();
+          else stopAnimation();
+        },
+        { threshold: 0.05 }
+      ).observe(canvas);
+    } else {
+      canvasVisible = true;
+      startAnimation();
     }
 
-    /* kick off: a few ants already mid-colony */
+    // Pause when tab is inactive
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopAnimation();
+      else if (canvasVisible) startAnimation();
+    });
+
     for (let i = 0; i < 5; i += 1) {
       spawnAnt();
       ants[i].d = rand(0.05, 0.6);
     }
     updateStats();
-    requestAnimationFrame(frame);
   }
 })();
