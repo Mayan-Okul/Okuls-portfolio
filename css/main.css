@@ -731,12 +731,12 @@ body {
 }
 .hero-title__line1 {
   display: block;
-  font-size: clamp(2rem, 4.4vw, 3.3rem);
+  font-size: clamp(1.75rem, 4.4vw, 3.3rem);
   color: #fff;
 }
 .hero-title__line2 {
   display: block;
-  font-size: clamp(2.1rem, 4.4vw, 3.5rem);
+  font-size: clamp(1.9rem, 4.4vw, 3.5rem);
 }
 .hero-title--name {
   margin: 0 0 1.4rem;
@@ -1381,8 +1381,11 @@ body {
   font-weight: 700;
   color: rgba(255, 20, 147, 0.55);
 }
-.story-card__tag {
-  margin: 0 0 0.5rem;
+.story-card__tag,
+.story-card p.story-card__tag {
+  /* reserve the top-right corner so the tag can never run under the
+     absolutely positioned .story-card__idx number */
+  margin: 0 2.75rem 0.5rem 0;
   font-size: 0.58rem;
   font-weight: 600;
   letter-spacing: 0.22em;
@@ -1824,22 +1827,35 @@ a.contact-card:hover .contact-card__icon { transform: scale(1.1); }
 }
 
 @media (max-width: 767px) {
-  .hero { min-height: 100svh; }
+  /* -----------------------------------------------------------------------
+     MOBILE HERO — everything back into normal document flow.
+     Both states share ONE grid cell (they are two faces of the same hero,
+     never two stacked sections) and js/main.js morphs the hero's height to
+     the ACTIVE layer, so the visible state always defines the section box:
+     no absolute overlap, no clipped CTAs, no dead space.
+     ----------------------------------------------------------------------- */
+  .hero { min-height: 100svh; display: grid; }
+
   .hero__layer {
     display: flex;
     flex-direction: column;
+    position: relative;
+    inset: auto;
+    grid-area: 1 / 1;
+    align-self: start;
+    width: 100%;
   }
-  .hero__layer--bio { position: relative; inset: auto; }
-  .hero__layer--pitch { position: absolute; inset: 0; }
 
   .hero__art {
     position: relative;
     inset: auto;
     width: 100%;
-    height: 50svh;
+    height: auto;
+    min-height: 46svh;
+    max-height: 54svh;
     flex: none;
   }
-  .hero__art img { object-position: 50% 18%; }
+  .hero__art img { height: 100%; object-position: 50% 18%; }
   .hero__art--pitch,
   .hero__art--bio {
     -webkit-mask-image: linear-gradient(180deg, #000 76%, transparent 100%);
@@ -1853,20 +1869,40 @@ a.contact-card:hover .contact-card__icon { transform: scale(1.1); }
     width: 100%;
     max-width: 40rem;
     margin: 0 auto;
-    padding: 1.25rem 6vw 4.5rem;
+    /* deep bottom padding keeps the last CTA clear of the scroll cue */
+    padding: 1.25rem 6vw 8.5rem;
     flex: 1;
   }
-  .hero__hud { top: clamp(4rem, 10vh, 5rem); }
+  /* Desktop anchors (.hero__layer--* .hero__content { left/right: max(...) })
+     have higher specificity than the rule above — reset them so the column
+     never pokes outside the viewport and gets clipped. */
+  .hero__layer--pitch .hero__content,
+  .hero__layer--bio .hero__content { left: auto; right: auto; }
+
+  /* keep the HUD pill clear of the fixed nav pill on short screens */
+  .hero__hud { top: clamp(5.25rem, 11vh, 6.6rem); }
+
+  /* ------- single-column vertical stack for every grid under 768px ------- */
+  .bio-grid { grid-template-columns: minmax(0, 1fr); }
+  .find-me__pills { grid-template-columns: minmax(0, 1fr); }
+
+  /* decorative marquee: soften it so section headings stay readable */
+  .workstations { opacity: 0.3; }
 }
 
 @media (max-width: 860px) {
   .nav-links { display: none; }
 }
 
+@media (max-width: 540px) {
+  /* Stack the canvas readout above the action button — at phone widths the
+     two bottom pills collided inside the square viz box. */
+  .viz-stats { bottom: 3.7rem; }
+  .viz-btn { right: auto; left: 0.9rem; bottom: 0.9rem; }
+}
+
 @media (max-width: 640px) {
   .hud-chip--sep { border-left: 0; padding-left: 0; }
-  .bio-grid { grid-template-columns: 1fr; }
-  .find-me__pills { grid-template-columns: 1fr; }
   .chat-row, .chat-row--self { flex-direction: column; align-items: flex-start; }
   .chat-bubble { width: 100%; }
   .chat-bubble--self::before { right: auto; left: -7px; }
@@ -1875,7 +1911,10 @@ a.contact-card:hover .contact-card__icon { transform: scale(1.1); }
 }
 
 @media (max-width: 400px) {
-  .hero-title__line2 { font-size: 2.3rem; }
+  /* the rotating words are white-space:nowrap — size them in vw so their
+     min-width can never push the hero column past the viewport */
+  .hero-title__line1 { font-size: clamp(1.45rem, 6.2vw, 1.75rem); }
+  .hero-title__line2 { font-size: clamp(1.65rem, 8vw, 2.3rem); }
   .hero-title--name { font-size: 2.1rem; }
   .mega-title { font-size: 3rem; }
 }
