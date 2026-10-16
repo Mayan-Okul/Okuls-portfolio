@@ -122,12 +122,46 @@
   let animDur = 1400;
   let transitioning = false;
 
+  /* ------------------------------------------------------------------ *
+   *  Mobile (<768px) hero height morph
+   *
+   *  On phones both hero layers sit in normal flow inside ONE grid cell
+   *  (see css/main.css), so the hero box must follow the ACTIVE layer.
+   *  We cache each layer's natural height and interpolate it with --p so
+   *  the hero grows/shrinks smoothly during the state flip: the visible
+   *  content always defines the section height — no dead space below the
+   *  pitch, no clipped bio cards, no content overlapping the scroll cue.
+   * ------------------------------------------------------------------ */
+  const mobileHeroMQ = window.matchMedia('(max-width: 767px)');
+  let heroLayerHPitch = 0;
+  let heroLayerHBio = 0;
+
+  function applyHeroHeight() {
+    if (!hero || !mobileHeroMQ.matches || !heroLayerHPitch || !heroLayerHBio) return;
+    const h = heroLayerHPitch + (heroLayerHBio - heroLayerHPitch) * p;
+    hero.style.height = `${Math.round(h)}px`;
+  }
+
+  function measureHeroLayers() {
+    if (!hero || !pitchLayer || !bioLayer) return;
+    if (!mobileHeroMQ.matches) {
+      heroLayerHPitch = 0;
+      heroLayerHBio = 0;
+      hero.style.height = ''; // desktop keeps its CSS-driven min-height
+      return;
+    }
+    heroLayerHPitch = pitchLayer.offsetHeight;
+    heroLayerHBio = bioLayer.offsetHeight;
+    applyHeroHeight();
+  }
+
   function setP(value) {
     const clamped = clamp01(value);
     p = clamped;
     if (!hero) return;
 
     hero.style.setProperty('--p', clamped.toFixed(4));
+    applyHeroHeight();
 
     // Circular clip-path reveal on bioLayer
     if (bioLayer && !reducedMotion) {
@@ -206,6 +240,7 @@
       rafId = null;
     }
     const from = p;
+    measureHeroLayers(); // refresh cached layer heights before the morph
     animFrom = from;
     animTo = target;
     animStart = performance.now();
@@ -303,6 +338,21 @@
   renderState();
   renderCountdown();
   setP(0);
+  measureHeroLayers();
+
+  // Re-measure whenever layout can change (fonts, load, resize, breakpoint)
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(measureHeroLayers).catch(() => {});
+  }
+  window.addEventListener('load', measureHeroLayers);
+  let heroMeasureTimer = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(heroMeasureTimer);
+    heroMeasureTimer = setTimeout(measureHeroLayers, 120);
+  }, { passive: true });
+  if (typeof mobileHeroMQ.addEventListener === 'function') {
+    mobileHeroMQ.addEventListener('change', measureHeroLayers);
+  }
 
   /* ------------------------------------------------------------------ *
    *  5. Scroll Reveal (IntersectionObserver)
