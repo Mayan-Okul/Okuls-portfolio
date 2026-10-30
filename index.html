@@ -82,16 +82,8 @@
             </span>
           </h1>
 
+
           <ul class="pill-row" aria-label="Core technologies">
-            <li class="tech-pill tech-pill--react hover-jiggle">
-              <svg class="pill-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#22D3EE" stroke-width="1.1">
-                <ellipse cx="12" cy="12" rx="10" ry="4.2"/>
-                <ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(60 12 12)"/>
-                <ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(120 12 12)"/>
-                <circle cx="12" cy="12" r="1.9" fill="#22D3EE" stroke="none"/>
-              </svg>
-              React.js
-            </li>
             <li class="tech-pill tech-pill--go hover-jiggle">
               <svg class="pill-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <ellipse cx="12" cy="14.5" rx="7.6" ry="7" fill="#00ADD8"/>
@@ -105,14 +97,21 @@
                 <rect x="10.6" y="17.4" width="1" height="2" rx="0.5" fill="#fff"/>
                 <rect x="12.4" y="17.4" width="1" height="2" rx="0.5" fill="#fff"/>
               </svg>
-              Go
+              Golang
+            </li>
+            <li class="tech-pill tech-pill--html hover-jiggle">
+              <span class="pill-icon pill-icon--html" aria-hidden="true">HTML</span>
+              HTML
             </li>
             <li class="tech-pill tech-pill--js hover-jiggle">
               <span class="pill-icon pill-icon--js" aria-hidden="true">JS</span>
               JavaScript
             </li>
+            <li class="tech-pill tech-pill--py hover-jiggle">
+              <span class="pill-icon pill-icon--py" aria-hidden="true">PY</span>
+              Python
+            </li>
           </ul>
-
           <p class="script-glow">“Fueled by caffeine &amp; curiosity”</p>
 
           <div class="cta-row">
@@ -314,17 +313,43 @@ live: mali-mnyapola.netlify.app</pre></div>
         </article>
 
         <div class="project-grid">
-          <a class="project-card glass reveal" href="https://mali-mnyapola.netlify.app" target="_blank" rel="noopener noreferrer">
+
+          <a class="project-card glass reveal mali-featured" href="https://mali-mnyapola.netlify.app" target="_blank" rel="noopener noreferrer" style="grid-column: 1 / -1;">
             <div class="project-card__glow" aria-hidden="true"></div>
             <p class="chip-row">
-              <span class="chip chip--pink mono">secondary project</span>
-              <span class="chip mono">ai + cloud</span>
+              <span class="chip chip--pink mono">ongoing · solo build</span>
+              <span class="chip mono">full-stack · ai + cloud</span>
             </p>
-            <h3 class="project-card__title">Mali <span class="project-card__sub mono">business OS</span></h3>
-            <p class="project-card__desc">An AI-powered business OS helping African SMEs run smarter, faster, and more profitably.</p>
+            <h3 class="project-card__title">Mali <span class="project-card__sub mono">business OS for African shops</span></h3>
+            <p class="project-card__desc">Most small shops across Africa still run on a notebook, M-Pesa messages and memory. Mali turns a shop's own sales, stock, expenses and credit records into plain-language advice: what to reorder, who owes you (deni), and why this week's profit moved. It's live today as a working app with email sign-in, per-shop data isolation (Postgres Row Level Security), a live dashboard, deni tracking and a rule-based insight engine. I'm designing and building it end to end, and an AI layer is scaffolded as the next step.</p>
+            <div class="spec-row mono" style="margin-top: 1.5rem;">
+              <div class="spec-stat">
+                <span class="stat-num mono">~7.4M</span>
+                <span class="stat-label">micro, small & medium enterprises in Kenya, ~5.85M of them unlicensed</span>
+              </div>
+              <div class="spec-stat">
+                <span class="stat-num mono">~40M</span>
+                <span class="stat-label">monthly M-Pesa users in Kenya: the money is digital, the record-keeping isn't</span>
+              </div>
+              <div class="spec-stat">
+                <span class="stat-num mono">~40%</span>
+                <span class="stat-label">of African SMEs record information infrequently or not at all</span>
+              </div>
+              <div class="spec-stat">
+                <span class="stat-num mono">+7–9 pts</span>
+                <span class="stat-label">daily record-keeping when a free phone POS app added automated insights; users also saw higher daily sales</span>
+              </div>
+            </div>
+            <p class="mono" style="font-size: 0.64rem; color: var(--faint); margin-top: 1rem; line-height: 1.6;">Sources: KNBS 2016 MSME Survey (via Africa Check) · Safaricom / The Star, Mar 2026 · IGC policy brief on SME record-keeping (Aug 2026)</p>
+            <div class="chip-row" style="margin-top: 1.25rem;">
+              <span class="chip mono">React 19</span>
+              <span class="chip mono">Vite</span>
+              <span class="chip mono">Tailwind v4</span>
+              <span class="chip mono">Supabase</span>
+              <span class="chip mono">Netlify</span>
+            </div>
             <span class="project-card__link mono">mali-mnyapola.netlify.app ↗</span>
           </a>
-
           <div class="mini-list glass reveal">
             <p class="kicker mono">also shipping</p>
             <h3 class="mini-list__title">More things I’ve built</h3>
@@ -368,7 +393,7 @@ live: mali-mnyapola.netlify.app</pre></div>
         <header class="section__head section__head--center reveal">
           <p class="kicker mono">03 // narrative &amp; foundations</p>
           <h2 class="section-title">BEHIND <span class="neon-pink">THE</span> CODE</h2>
-          <p class="section__sub">A tuition-free apprenticeship, a business-IT foundation, and an obsession with backend architecture.</p>
+          <p class="section__sub">A tuition-free apprenticeship, a business-IT foundation, and a growing obsession with crafting great frontends.</p>
         </header>
 
         <div class="story-grid">
@@ -388,16 +413,16 @@ live: mali-mnyapola.netlify.app</pre></div>
             <span class="story-card__foot mono">sql · networking · info systems</span>
           </article>
 
+
           <article class="story-card glass reveal">
             <span class="story-card__idx mono">03</span>
             <p class="story-card__tag story-card__tag--glow-red mono">current focus</p>
-            <h3>Backend architecture &amp; Go</h3>
-            <p>Today the craft is <strong>backend architecture</strong>: concurrency, clean service boundaries, and Go all the way down — shipping systems that stay fast and predictable under load.</p>
-            <p class="story-card__growth mono">Still early in the journey, and leaning into it — figuring things out in public, one project at a time.</p>
-            <span class="story-card__foot mono">goroutines · channels · apis</span>
+            <h3>Frontend craft & design</h3>
+            <p>Right now I'm polishing my <strong>frontend skills</strong>: building responsive, accessible interfaces with <strong>JavaScript, TypeScript, Tailwind CSS v4 and HTML</strong>. My frontend-assigned projects have gone well, and it's where most of my energy goes.</p>
+            <p class="story-card__growth mono">I also build full-stack, like Mali, so backend work is part of the picture. It's a skill I'm growing, not my main focus, while I keep exploring AI, cloud and cybersecurity on the side.</p>
+            <span class="story-card__foot mono">javascript & typescript & tailwind v4 & html</span>
           </article>
         </div>
-
         <div class="explore-grid reveal">
           <div class="explore-card glass reveal">
             <span class="explore-card__dot explore-card__dot--pink" aria-hidden="true"></span>
